@@ -1,0 +1,15 @@
+
+metadata {
+    name: "test_python_plugin"
+    description: "Test Description"
+    remote_url: ""
+}
+runtime {
+    runtime_type: PY3
+    py3_runtime_info {
+        main_service_class: "pyplugin.test_plugin.TestService"
+    }
+    pipes {
+        pipe_type: DEFAULT
+    }
+}
