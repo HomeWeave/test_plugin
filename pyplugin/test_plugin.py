@@ -2,6 +2,7 @@ from threading import Thread
 from socketserver import BaseRequestHandler, TCPServer, ThreadingMixIn
 
 from pyantonlib.channel import DefaultProtoChannel
+from pyantonlib.channel import AppHandlerBase, DeviceHandlerBase
 from pyantonlib.plugin import AntonPlugin
 from anton.plugin_pb2 import PipeType
 
@@ -65,7 +66,8 @@ class TestService(AntonPlugin):
 
     def setup(self, plugin_startup_info):
         self.handler = None
-        self.channel = DefaultProtoChannel()
+        self.channel = DefaultProtoChannel(DeviceHandlerBase(),
+                                           AppHandlerBase(plugin_startup_info))
         registry = self.channel_registrar()
         registry.register_controller(PipeType.DEFAULT, self.channel)
         self.server = ThreadedTCPServer(self, ("", 56789),
