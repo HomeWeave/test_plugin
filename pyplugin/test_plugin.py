@@ -1,5 +1,7 @@
-from threading import Thread
-from socketserver import BaseRequestHandler, TCPServer, ThreadingMixIn
+import base64
+from threading import Thread, Lock
+from uuid import uuid4
+from ws4py.client.threadedclient import WebSocketClient
 
 from pyantonlib.channel import DefaultProtoChannel
 from pyantonlib.channel import AppHandlerBase, DeviceHandlerBase
@@ -9,71 +11,99 @@ from anton.plugin_pb2 import PipeType
 from pyantonlib.utils import log_info
 
 
-class DelimitedChannel:
+class TestEnvironmentClient(WebSocketClient):
 
-    def __init__(self, sock):
-        self.sock = sock
+    def __init__(self, port):
+        super().__init__(f"ws://127.0.0.1:{port}")
+        self.listener = None
 
-    def read(self, size):
-        buf = bytes()
-        while size > 0:
-            buf += self.sock.recv(min(1024, size))
-            size -= len(buf)
-        return buf
-
-    def read_message(self):
-        d = self.read(4)
-        size = d[0] << 24 | d[1] << 16 | d[2] << 8 | d[3]
-        return self.read(size)
-
-    def send_message(self, obj):
-        l = len(obj)
-        buf = bytes([(l >> 24) & 0xFF, (l >> 16) & 0xFF, (l >> 8) & 0xFF,
-                     (l) & 0xFF])
-        buf += obj
-        self.sock.sendall(buf)
+    def receive_message(self, msg):
+        if self.listener:
+            self.listener(msg.data)
 
 
-class ThreadedTCPRequestHandler(BaseRequestHandler):
+class TestChannel:
 
-    def setup(self):
-        self.server.service.handler = self
-        self.channel = DelimitedChannel(self.request)
+    def __init__(self, client):
+        self.client = client
+        self.client.listener = self.on_message
+        self.waiters = {}
+        self.waiter_lock = Lock()
 
-    def handle(self):
-        data = self.channel.read_message()
+        self.listeners = {}
+
+    def on_message(self, msg):
+        obj = json.loads(msg)
+
+        with self.waiter_lock:
+            callback = self.waiters.pop(obj["id"], None)
+            if callback:
+                callback(obj)
+                return
+
+        fn = self.listeners.get(obj["kind"], None)
+        if fn:
+            fn(obj)
+
+    def query(self, kind, data, callback):
+        id = uuid4()
+        obj = {"type": kind, "data": base64.b64encode(data), "id": id}
+
+        with self.waiter_lock:
+            self.waiters[id] = callback
+
+        self.client.send(obj)
+
+    def send(self, kind, data):
+        obj = {"type": kind, "data": base64.b64encode(data), "id": uuid4()}
+        self.client.send(obj)
+
+    def register(self, kind, callback):
+        self.listeners[kind] = callback
 
 
-class ThreadedTCPServer(ThreadingMixIn, TCPServer):
+class AppHandler(AppHandlerBase):
 
-    def __init__(self, service, *args, **kwargs):
+    def __init__(self, plugin_startup_info, service):
+        super().__init__(plugin_startup_info)
         self.service = service
-        super().__init__(*args, **kwargs)
 
 
-class DefaultProtoChannelImp(DefaultProtoChannel):
+class DeviceHandler(DeviceHandlerBase):
 
     def __init__(self, service):
+        super().__init__()
         self.service = service
 
-    def on_call_status(self, msg):
-        self.service.request_handler.channel.send_message("call_status")
-        self.service.request_handler.channel.send_message(
-            msg.SerializeToString())
+    def handle_instruction(self, msg, responder):
+        responder(CallStatus(code=Status.STATUS_OK, msg="OK."))
+        self.service.channel.send("instruction", msg.SerializeToString())
+
+    def handle_set_device_state(self, msg, responder):
+        responder(CallStatus(code=Status.STATUS_OK, msg="OK."))
+        self.service.channel.send("set_device_state", msg.SerializeToString())
+
+    def device_state_updated(self, msg):
+        state = DeviceState()
+        state.ParseFromString(base64.b64decode(msg["data"]))
+        self.send_device_state_updated(state)
 
 
 class TestService(AntonPlugin):
 
     def setup(self, plugin_startup_info):
-        self.handler = None
-        self.channel = DefaultProtoChannel(DeviceHandlerBase(),
-                                           AppHandlerBase(plugin_startup_info))
+        self.test_server = TestEnvironmentClient(56789)
+        self.test_server.connect()
+
+        self.device_handler = DeviceHandler(self)
+        self.app_handler = AppHandler(plugin_startup_info, self)
+        self.channel = DefaultProtoChannel(self.device_handler,
+                                           self.app_handler)
+        self.channel.register("device_state_updated",
+                              self.device_handler.device_state_updated)
+
         registry = self.channel_registrar()
         registry.register_controller(PipeType.DEFAULT, self.channel)
-        self.server = ThreadedTCPServer(self, ("", 56789),
-                                        ThreadedTCPRequestHandler)
-        self.server_thread = Thread(target=self.server.serve_forever)
-        self.server_thread.daemon = True
 
     def on_start(self):
         self.server_thread.start()

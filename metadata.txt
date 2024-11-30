@@ -8,6 +8,7 @@ runtime {
     runtime_type: PY3
     py3_runtime_info {
         main_service_class: "pyplugin.test_plugin.TestService"
+        dependencies: "ws4py"
     }
     pipes {
         pipe_type: DEFAULT
