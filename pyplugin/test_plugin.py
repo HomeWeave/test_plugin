@@ -99,8 +99,10 @@ class TestService(AntonPlugin):
         self.app_handler = AppHandler(plugin_startup_info, self)
         self.channel = DefaultProtoChannel(self.device_handler,
                                            self.app_handler)
-        self.channel.register("device_state_updated",
-                              self.device_handler.device_state_updated)
+
+        self.test_channel = TestChannel(self.test_server)
+        self.test_channel.register("device_state_updated",
+                                   self.device_handler.device_state_updated)
 
         registry = self.channel_registrar()
         registry.register_controller(PipeType.DEFAULT, self.channel)
