@@ -34,6 +34,7 @@ class TestChannel:
 
     def on_message(self, msg):
         obj = json.loads(msg)
+        log_info("[TestPlugin] Received: " + str(obj))
 
         with self.waiter_lock:
             callback = self.waiters.pop(obj["id"], None)
@@ -86,6 +87,7 @@ class DeviceHandler(DeviceHandlerBase):
     def device_state_updated(self, msg):
         state = DeviceState()
         state.ParseFromString(base64.b64decode(msg["data"]))
+        log_info("[TestPlugin] Sending from plugin: " + str(state))
         self.send_device_state_updated(state)
 
 
