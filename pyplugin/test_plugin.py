@@ -93,7 +93,6 @@ class TestService(AntonPlugin):
 
     def setup(self, plugin_startup_info):
         self.test_server = TestEnvironmentClient(56789)
-        self.test_server.connect()
 
         self.device_handler = DeviceHandler(self)
         self.app_handler = AppHandler(plugin_startup_info, self)
@@ -108,7 +107,7 @@ class TestService(AntonPlugin):
         registry.register_controller(PipeType.DEFAULT, self.channel)
 
     def on_start(self):
-        self.server_thread.start()
+        self.test_server.connect()
 
     def on_stop(self):
         pass
