@@ -1,13 +1,15 @@
 import base64
+import json
 from threading import Thread, Lock
 from uuid import uuid4
 from ws4py.client.threadedclient import WebSocketClient
 
+from anton.plugin_pb2 import PipeType
+from anton.state_pb2 import DeviceState
+
 from pyantonlib.channel import DefaultProtoChannel
 from pyantonlib.channel import AppHandlerBase, DeviceHandlerBase
 from pyantonlib.plugin import AntonPlugin
-from anton.plugin_pb2 import PipeType
-
 from pyantonlib.utils import log_info
 
 
@@ -17,7 +19,7 @@ class TestEnvironmentClient(WebSocketClient):
         super().__init__(f"ws://127.0.0.1:{port}")
         self.listener = None
 
-    def receive_message(self, msg):
+    def received_message(self, msg):
         if self.listener:
             self.listener(msg.data)
 
@@ -36,11 +38,12 @@ class TestChannel:
         obj = json.loads(msg)
         log_info("[TestPlugin] Received: " + str(obj))
 
-        with self.waiter_lock:
-            callback = self.waiters.pop(obj["id"], None)
-            if callback:
-                callback(obj)
-                return
+        if "id" in obj:
+            with self.waiter_lock:
+                callback = self.waiters.pop(obj["id"], None)
+                if callback:
+                    callback(obj)
+                    return
 
         fn = self.listeners.get(obj["kind"], None)
         if fn:
