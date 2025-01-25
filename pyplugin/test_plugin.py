@@ -6,6 +6,7 @@ from ws4py.client.threadedclient import WebSocketClient
 
 from anton.plugin_pb2 import PipeType
 from anton.state_pb2 import DeviceState
+from anton.call_status_pb2 import CallStatus, Status
 
 from pyantonlib.channel import DefaultProtoChannel
 from pyantonlib.channel import AppHandlerBase, DeviceHandlerBase
