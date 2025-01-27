@@ -60,7 +60,7 @@ class TestChannel:
     def send(self, kind, data, msg_id=None):
         obj = {
             "type": kind,
-            "data": base64.b64encode(data),
+            "data": base64.b64encode(data).decode('ascii'),
             "id": msg_id or uuid4()
         }
         self.client.send(json.dumps(obj))
