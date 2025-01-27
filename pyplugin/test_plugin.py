@@ -51,7 +51,7 @@ class TestChannel:
             fn(obj)
 
     def query(self, kind, data, callback):
-        msg_id = uuid4()
+        msg_id = str(uuid4())
         with self.waiter_lock:
             self.waiters[msg_id] = callback
 
@@ -61,7 +61,7 @@ class TestChannel:
         obj = {
             "type": kind,
             "data": base64.b64encode(data).decode('ascii'),
-            "id": msg_id or uuid4()
+            "id": msg_id or str(uuid4())
         }
         self.client.send(json.dumps(obj))
 
