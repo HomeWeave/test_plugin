@@ -82,11 +82,14 @@ class DeviceHandler(DeviceHandlerBase):
 
     def handle_instruction(self, msg, responder):
         responder(CallStatus(code=Status.STATUS_OK, msg="OK."))
-        self.service.channel.send("instruction", msg.SerializeToString())
+        log_info("[TestPlugin] Received at plugin: " + str(msg))
+        self.service.test_channel.send("instruction", msg.SerializeToString())
 
     def handle_set_device_state(self, msg, responder):
         responder(CallStatus(code=Status.STATUS_OK, msg="OK."))
-        self.service.channel.send("set_device_state", msg.SerializeToString())
+        log_info("[TestPlugin] Received at plugin: " + str(msg))
+        self.service.test_channel.send("set_device_state",
+                                       msg.SerializeToString())
 
     def device_state_updated(self, msg):
         state = DeviceState()
