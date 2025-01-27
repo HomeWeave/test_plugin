@@ -51,17 +51,19 @@ class TestChannel:
             fn(obj)
 
     def query(self, kind, data, callback):
-        id = uuid4()
-        obj = {"type": kind, "data": base64.b64encode(data), "id": id}
-
+        msg_id = uuid4()
         with self.waiter_lock:
-            self.waiters[id] = callback
+            self.waiters[msg_id] = callback
 
-        self.client.send(obj)
+        self.send(kind, data, msg_id=msg_id)
 
-    def send(self, kind, data):
-        obj = {"type": kind, "data": base64.b64encode(data), "id": uuid4()}
-        self.client.send(obj)
+    def send(self, kind, data, msg_id=None):
+        obj = {
+            "type": kind,
+            "data": base64.b64encode(data),
+            "id": msg_id or uuid4()
+        }
+        self.client.send(json.dumps(obj))
 
     def register(self, kind, callback):
         self.listeners[kind] = callback
@@ -82,12 +84,12 @@ class DeviceHandler(DeviceHandlerBase):
 
     def handle_instruction(self, msg, responder):
         responder(CallStatus(code=Status.STATUS_OK, msg="OK."))
-        log_info("[TestPlugin] Received at plugin: " + str(msg))
+        log_info("[TestPlugin] Received instruction at plugin: " + str(msg))
         self.service.test_channel.send("instruction", msg.SerializeToString())
 
     def handle_set_device_state(self, msg, responder):
         responder(CallStatus(code=Status.STATUS_OK, msg="OK."))
-        log_info("[TestPlugin] Received at plugin: " + str(msg))
+        log_info("[TestPlugin] Received SetDeviceState at plugin: " + str(msg))
         self.service.test_channel.send("set_device_state",
                                        msg.SerializeToString())
 
