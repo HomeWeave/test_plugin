@@ -99,6 +99,11 @@ class DeviceHandler(DeviceHandlerBase):
         log_info("[TestPlugin] Sending from plugin: " + str(state))
         self.send_device_state_updated(state)
 
+    def device_delete(self, msg):
+        device_id = msg["data"]
+        log_info("[TestPlugin] Sending from plugin: delete " + device_id)
+        self.delete_device(device_id)
+
 
 class TestService(AntonPlugin):
 
@@ -113,6 +118,8 @@ class TestService(AntonPlugin):
         self.test_channel = TestChannel(self.test_server)
         self.test_channel.register("device_state_updated",
                                    self.device_handler.device_state_updated)
+        self.test_channel.register("device_delete",
+                                   self.device_handler.device_delete)
 
         registry = self.channel_registrar()
         registry.register_controller(PipeType.DEFAULT, self.channel)
