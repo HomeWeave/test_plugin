@@ -116,7 +116,7 @@ class DeviceHandler(DeviceHandlerBase):
         platform_request = PlatformRequest()
         platform_request.ParseFromString(base64.b64decode(msg["data"]))
         log_info("[TestPlugin] Sending from plugin: " + str(platform_request))
-        self.send_platform_request(request)
+        self.send_platform_request(platform_request)
 
 
 class TestService(AntonPlugin):
