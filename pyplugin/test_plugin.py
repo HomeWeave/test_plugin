@@ -6,6 +6,7 @@ from ws4py.client.threadedclient import WebSocketClient
 
 from anton.plugin_pb2 import PipeType
 from anton.state_pb2 import DeviceState
+from anton.platform_pb2 import PlatformRequest
 from anton.call_status_pb2 import CallStatus, Status
 
 from pyantonlib.channel import DefaultProtoChannel
@@ -93,6 +94,13 @@ class DeviceHandler(DeviceHandlerBase):
         self.service.test_channel.send("set_device_state",
                                        msg.SerializeToString())
 
+    def handle_platform_response(self, msg, responder):
+        responder(CallStatus(code=Status.STATUS_OK, msg="OK."))
+        log_info("[TestPlugin] Received PlatformResponse at plugin: " +
+                 str(msg))
+        self.service.test_channel.send("platform_response",
+                                       msg.SerializeToString())
+
     def device_state_updated(self, msg):
         state = DeviceState()
         state.ParseFromString(base64.b64decode(msg["data"]))
@@ -103,6 +111,12 @@ class DeviceHandler(DeviceHandlerBase):
         device_id = msg["data"]
         log_info("[TestPlugin] Sending from plugin: delete " + device_id)
         self.delete_device(device_id)
+
+    def platform_request(self, msg):
+        platform_request = PlatformRequest()
+        platform_request.ParseFromString(base64.b64decode(msg["data"]))
+        log_info("[TestPlugin] Sending from plugin: " + str(platform_request))
+        self.send_platform_request(request)
 
 
 class TestService(AntonPlugin):
@@ -120,6 +134,8 @@ class TestService(AntonPlugin):
                                    self.device_handler.device_state_updated)
         self.test_channel.register("device_delete",
                                    self.device_handler.device_delete)
+        self.test_channel.register("platform_request",
+                                   self.device_handler.platform_request)
 
         registry = self.channel_registrar()
         registry.register_controller(PipeType.DEFAULT, self.channel)
